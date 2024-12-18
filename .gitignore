@@ -13,5 +13,5 @@ yarn-error.log*
 # Ignore system files
 .DS_Store
 Thumbs.db
-
+service-account-file.json
 # Ignore build directories (
