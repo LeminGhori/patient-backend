@@ -2,8 +2,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const { google } = require("googleapis");
-const fs = require("fs");
-const path = require("path");
 const multer = require("multer");
 const cors = require("cors");
 const { v4: uuidv4 } = require("uuid"); // To generate unique IDs
@@ -25,16 +23,17 @@ app.use(bodyParser.json({ limit: "50mb" })); // Set a larger limit for JSON bodi
 // Load Google Service Account credentials
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const serviceAccount = {
-  "type": process.env.type,
-  "project_id": process.env.project_id,
-  "private_key_id": process.env.private_key_id,
-  "private_key": process.env.private_key,
-  "client_email": process.env.client_email,
-  "client_id": process.env.client_id,
-  "auth_uri": process.env.auth_uri,
-  "token_uri": process.env.token_uri,
-  "auth_provider_x509_cert_url": process.env.auth_provider_x509_cert_url,
-  "client_x509_cert_url": process.env.client_x509_cert_url,
+  type: process.env.TYPE,
+  project_id: process.env.PROJECT_ID,
+  private_key_id: process.env.PRIVATE_KEY_ID,
+  private_key: process.env.PRIVATE_KEY,
+  client_email: process.env.CLIENT_EMAIL,
+  client_id: process.env.CLIENT_ID,
+  auth_uri: process.env.AUTH_URL,
+  token_uri: process.env.TOKEN_URL,
+  auth_provider_x509_cert_url: process.env.AUTH_URL,
+  client_x509_cert_url: process.env.CLIENT_X509_CERT_URL,
+  universe_domain: process.env.UNIVERSE_DOMAIN,
 };
 
 // Google Sheets setup
@@ -54,96 +53,75 @@ function generateUniquePatientNumber() {
   return `PN-${Date.now()}-${uuidv4().slice(0, 8)}`; // Combines timestamp and UUID for uniqueness
 }
 
-// Utility to get nested values from an object
+// Utility function to get nested values from an object
 function getValueFromNestedObject(payload, key) {
   const keys = key.split(".");
   return keys.reduce((obj, currentKey) => (obj && obj[currentKey] ? obj[currentKey] : ""), payload);
 }
 
-// API to append a row
+// API to add a new patient row
 app.post("/api/add-patient", upload, async (req, res) => {
   const payload = req.body;
 
   try {
-    // Step 1: Get existing headers from the Google Sheet
+    // Step 1: Retrieve existing headers from the Google Sheet
     const existingHeadersResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A1:Z1`, // Adjust the range as needed for the expected number of columns
+      range: `${SHEET_NAME}!A1:Z1`, // Adjust the range as needed
     });
 
     let existingHeaders = existingHeadersResponse.data.values
       ? existingHeadersResponse.data.values[0]
       : [];
 
-    // Step 2: Check if any keys in the payload are missing from the headers
-    const payloadKeys = [
-      "patientNumber", // Will be dynamically generated
-      "currentDate",
-      "location",
-      "name",
-      "id",
-      "DOB",
-      "gender",
-      "tobaccoUsage",
-      "tobaccoDetails.type",
-      "tobaccoDetails.frequency",
-      "tobaccoDetails.years",
-      "oralFindings",
-      "oralFindingsDocument",
-      "dxBluResult",
-      "dxBluResultDocument",
-      "dxBluInterpretation",
-      "recommendation",
-      "biopsyStatus",
-      "biopsyStatusDocument",
-      "biopsyResult",
+    // Step 2: Define the required headers and check for missing ones
+    const requiredHeaders = [
+      "patientNumber", "currentDate", "location", "name", "id", "DOB", 
+      "gender", "tobaccoUsage", "tobaccoDetails.type", "tobaccoDetails.frequency", 
+      "tobaccoDetails.years", "oralFindings", "oralFindingsDocument", 
+      "dxBluResult", "dxBluResultDocument", "dxBluInterpretation", "recommendation", 
+      "biopsyStatus", "biopsyStatusDocument", "biopsyResult"
     ];
 
-    const newHeaders = payloadKeys.filter((key) => !existingHeaders.includes(key));
+    const missingHeaders = requiredHeaders.filter(header => !existingHeaders.includes(header));
 
-    // Step 3: Append new headers to the first row if any are missing
-    if (newHeaders.length > 0) {
-      existingHeaders = [...existingHeaders, ...newHeaders];
+    // Step 3: Append missing headers to the Google Sheet if necessary
+    if (missingHeaders.length > 0) {
+      existingHeaders = [...existingHeaders, ...missingHeaders];
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
         range: `${SHEET_NAME}!A1`,
         valueInputOption: "RAW",
-        resource: {
-          values: [existingHeaders],
-        },
+        resource: { values: [existingHeaders] },
       });
     }
 
-    // Step 4: Prepare row data
+    // Step 4: Prepare row data for Google Sheets
     const rowData = existingHeaders.map((header) => {
       if (header === "patientNumber") {
         return generateUniquePatientNumber(); // Generate unique patient number
       }
-      if (header === "imageUrl") {
-        return req.file ? `https://your-storage-url/${req.file.filename}` : ""; // Handle image URL
+      if (header === "imageUrl" && req.file) {
+        return `https://your-storage-url/${req.file.filename}`; // Image URL
       }
-
-      // Handle nested fields in payload (e.g., "tobaccoDetails.type")
-      return getValueFromNestedObject(payload, header);
+      return getValueFromNestedObject(payload, header); // Extract values from payload
     });
 
-    // Step 5: Append the row to the Google Sheet
+    // Step 5: Append the new row to the Google Sheet
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME}!A1`,
       valueInputOption: "RAW",
-      resource: {
-        values: [rowData],
-      },
+      resource: { values: [rowData] },
     });
 
     res.status(200).json({
-      message: "Row added successfully",
+      message: "Patient data added successfully",
       spreadsheetUpdate: response.data,
     });
   } catch (error) {
-    console.error("Error adding row:", error);
-    res.status(500).json({ message: "Error adding row", error });
+    console.error("Error adding patient data:", error);
+    res.status(500).json({ message: "Error adding patient data", error });
   }
 });
 
