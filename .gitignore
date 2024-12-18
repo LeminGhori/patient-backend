@@ -1,8 +1,17 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Ignore node_modules directory
+node_modules/
 
-# dependencies
-/node_modules
-/service-account-file.json
-/.env
+# Ignore .env file
 .env
-/env
+
+# Ignore log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore build directories (
