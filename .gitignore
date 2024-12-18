@@ -4,3 +4,4 @@
 /node_modules
 /service-account-file.json
 /.env
+.env
