@@ -7,6 +7,7 @@ const path = require("path");
 const multer = require("multer");
 const cors = require("cors");
 const { v4: uuidv4 } = require("uuid"); // To generate unique IDs
+require('dotenv').config();
 
 const app = express();
 
@@ -22,18 +23,30 @@ const upload = multer({
 app.use(bodyParser.json({ limit: "50mb" })); // Set a larger limit for JSON bodies
 
 // Load Google Service Account credentials
-const KEYFILEPATH = path.join(__dirname, "/service-account-file.json");
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
+const serviceAccount = {
+  "type": process.env.type,
+  "project_id": process.env.project_id,
+  "private_key_id": process.env.private_key_id,
+  "private_key": process.env.private_key,
+  "client_email": process.env.client_email,
+  "client_id": process.env.client_id,
+  "auth_uri": process.env.auth_uri,
+  "token_uri": process.env.token_uri,
+  "auth_provider_x509_cert_url": process.env.auth_provider_x509_cert_url,
+  "client_x509_cert_url": process.env.client_x509_cert_url,
+};
 
 // Google Sheets setup
 const auth = new google.auth.GoogleAuth({
-  keyFile: KEYFILEPATH,
+  credentials: serviceAccount,
   scopes: SCOPES,
 });
+
 const sheets = google.sheets({ version: "v4", auth });
 
 // Google Sheet details
-const SPREADSHEET_ID = "18WG65s7p_Iav_jwnVFAMdX0uYc_JKAWRpGs-LQvdB7Q";
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 const SHEET_NAME = "Sheet1";
 
 // Function to generate a unique patient number
