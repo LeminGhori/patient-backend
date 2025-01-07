@@ -11,7 +11,8 @@
     "express": "^4.21.2",
     "google-auth-library": "^9.15.0",
     "googleapis": "^144.0.0",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^11.0.3"
   },
   "scripts": {
     "start": "node index.js",
